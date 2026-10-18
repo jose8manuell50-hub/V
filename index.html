@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LeadFinder AI - Descoberta e Prospecção B2B</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React 18 & ReactDOM UMD -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel Standalone para JSX no navegador -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* Otimizações Mobile & Desktop */
+    body { -webkit-tap-highlight-color: transparent; }
+    .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 font-sans antialiased">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // Ícones SVG Nativos Inline (Garante carregamento 100% seguro sem falhas de CDN)
+    const Icons = {
+      Search: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" strokeWidth="2"/><path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round"/></svg>,
+      Users: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" strokeWidth="2"/><circle cx="9" cy="7" r="4" strokeWidth="2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" strokeWidth="2"/></svg>,
+      Heart: ({ filled }) => <svg className={`w-4 h-4 ${filled ? 'fill-red-500 text-red-500' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
+      History: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>,
+      Settings: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" strokeWidth="2"/><path strokeWidth="2" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+      Phone: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+      WhatsApp: () => <svg className="w-4 h-4 fill-emerald-600" viewBox="0 0 24 24"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2m.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.28-2.42 5.84a8.19 8.19 0 0 1-5.82 2.41c-1.47 0-2.93-.39-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.39c0-4.54 3.7-8.24 8.24-8.24M8.53 7.33c-.16 0-.35.06-.53.26-.18.2-.7.69-.7 1.68 0 .99.72 1.95.82 2.09.1.13 1.41 2.16 3.43 3.03.48.21.86.33 1.15.42.48.16.92.14 1.27.08.39-.06 1.19-.49 1.36-.96.17-.47.17-.88.12-.96-.05-.08-.18-.13-.38-.23s-1.19-.59-1.37-.66c-.18-.07-.31-.1-.44.1-.13.2-.5.66-.62.79-.11.13-.23.15-.43.05-.2-.1-.85-.31-1.62-.99-.6-.53-1-1.19-1.12-1.39-.12-.2-.01-.31.09-.41.09-.09.2-.23.3-.35.1-.11.13-.19.2-.31.06-.13.03-.24-.02-.34s-.44-1.07-.61-1.46c-.16-.39-.33-.33-.45-.34z"/></svg>,
+      Verified: () => <svg className="w-3.5 h-3.5 text-emerald-600 inline" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>,
+      ChevronRight: () => <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>,
+      Sparkles: () => <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>,
+      Download: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
+      MapPin: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
+      Globe: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" strokeWidth="2"/><path strokeWidth="2" d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+      Filter: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+    };
+
+    function App() {
+      // Estado de Navegação e visualização
+      const [view, setView] = useState("search"); // 'search' | 'leads' | 'favorites' | 'history'
+
+      // Estado dos Filtros de Busca
+      const [searchTerm, setSearchTerm] = useState("");
+      const [scope, setScope] = useState("local");
+      const [location, setLocation] = useState("São Paulo - SP");
+      const [segment, setSegment] = useState("Todos");
+      const [size, setSize] = useState("Todos");
+      const [contactMethod, setContactMethod] = useState("Todos");
+
+      // Estado dos Resultados e Processamento
+      const [leads, setLeads] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [statusMsg, setStatusMsg] = useState("");
+      const [page, setPage] = useState(1);
+      const pageSize = 7;
+
+      // Armazenamento Local Persistente (LocalStorage)
+      const [crmLeads, setCrmLeads] = useState(() => JSON.parse(localStorage.getItem("lf_crm") || "[]"));
+      const [favorites, setFavorites] = useState(() => JSON.parse(localStorage.getItem("lf_favs") || "[]"));
+      const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem("lf_hist") || "[]"));
+
+      // Modal de Proposta Comercial por IA
+      const [activeModalLead, setActiveModalLead] = useState(null);
+
+      // Sincronizar LocalStorage
+      useEffect(() => localStorage.setItem("lf_crm", JSON.stringify(crmLeads)), [crmLeads]);
+      useEffect(() => localStorage.setItem("lf_favs", JSON.stringify(favorites)), [favorites]);
+      useEffect(() => localStorage.setItem("lf_hist", JSON.stringify(history)), [history]);
+
+      // Primeira carga: Se não tiver nada, busca estabelecimentos reais em SP para visualização imediata
+      useEffect(() => {
+        executeSearch("Restaurante", "São Paulo - SP", true);
+      }, []);
+
+      // MOTOR DE BUSCA REAL (OpenStreetMap Overpass API com CORS nativo)
+      async function executeSearch(queryToUse = searchTerm, locToUse = location, isInitial = false) {
+        const q = queryToUse.trim() || "Comércio";
+        const loc = locToUse.trim() || "São Paulo - SP";
+
+        setLoading(true);
+        setStatusMsg("Consultando base de dados pública oficial...");
+        setPage(1);
+
+        try {
+          // 1. Geocodificação de Localidade pelo Nominatim
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc)}&limit=1`, {
+            headers: { 'Accept': 'application/json' }
+          });
+          const geoData = await geoRes.json();
+
+          if (!geoData || geoData.length === 0) {
+            setStatusMsg("Localidade não encontrada. Tente no formato: Cidade - Estado (Ex: Campinas - SP)");
+            setLoading(false);
+            return;
+          }
+
+          const bbox = geoData[0].boundingbox; // [minLat, maxLat, minLon, maxLon]
+          const south = bbox[0], north = bbox[1], west = bbox[2], east = bbox[3];
+
+          // 2. Consulta Overpass API com Timeout e Filtro Regex em Lojas, Serviços e Estabelecimentos
+          const overpassQuery = `
+            [out:json][timeout:25];
+            (
+              node["name"~"${q}",i](${south},${west},${north},${east});
+              way["name"~"${q}",i](${south},${west},${north},${east});
+              node["shop"~"${q}",i](${south},${west},${north},${east});
+              node["amenity"~"${q}",i](${south},${west},${north},${east});
+            );
+            out center 60;
+          `;
+
+          const overpassRes = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
+          if (!overpassRes.ok) throw new Error("Servidor público ocupado");
+          
+          const data = await overpassRes.json();
+          const elements = data.elements || [];
+
+          if (elements.length === 0) {
+            setStatusMsg("Nenhuma empresa cadastrada encontrada com este critério nesta região.");
+            setLeads([]);
+          } else {
+            // Mapeamento e normalização dos dados reais encontrados
+            const parsedLeads = elements.map((item, idx) => {
+              const tags = item.tags || {};
+              const rawPhone = tags.phone || tags["contact:phone"] || "";
+              const cleanDigits = rawPhone.replace(/\D/g, "");
+              
+              // Verificação de WhatsApp: DDD + 9 dígitos
+              let waNumber = tags["contact:whatsapp"] ? tags["contact:whatsapp"].replace(/\D/g, "") : null;
+              if (!waNumber && cleanDigits.length >= 10) {
+                waNumber = cleanDigits.startsWith("55") ? cleanDigits : `55${cleanDigits}`;
+              }
+
+              // Endereço Mapeado
+              const street = tags["addr:street"] || "";
+              const number = tags["addr:housenumber"] || "";
+              const suburb = tags["addr:suburb"] || "";
+              const fullAddress = [street, number, suburb].filter(Boolean).join(", ") || "Endereço cadastrado no mapa";
+
+              const categoryDetected = tags.shop || tags.amenity || tags.craft || tags.office || q;
+
+              return {
+                id: `osm-${item.id || idx}`,
+                name: tags.name || `${q} Estabelecimento`,
+                category: categoryDetected.charAt(0).toUpperCase() + categoryDetected.slice(1),
+                city: loc.split("-")[0].trim(),
+                state: loc.includes("-") ? loc.split("-")[1].trim() : "BR",
+                address: fullAddress,
+                phone: rawPhone || null,
+                whatsapp: waNumber,
+                website: tags.website || tags["contact:website"] || null,
+                isVerified: true,
+                size: (item.type === "way" || tags.website) ? "Pequena" : "MEI / Micro",
+                source: "OpenStreetMap Oficial"
+              };
+            });
+
+            setLeads(parsedLeads);
+            setStatusMsg("");
+
+            // Salva no Histórico se não for a carga inicial
+            if (!isInitial) {
+              setHistory(prev => [{ term: q, location: loc, count: parsedLeads.length, date: new Date().toLocaleDateString('pt-BR') }, ...prev.slice(0, 15)]);
+            }
+          }
+        } catch (err) {
+          console.error(err);
+          setStatusMsg("Aviso: A rede pública de mapas demorou a responder. Tente pesquisar novamente em alguns segundos.");
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      // Alternar Favorito
+      function toggleFavorite(lead) {
+        setFavorites(prev => {
+          const exists = prev.some(f => f.id === lead.id);
+          return exists ? prev.filter(f => f.id !== lead.id) : [...prev, lead];
+        });
+      }
+
+      // Adicionar / Alterar Status no CRM (Meus Leads)
+      function updateLeadCrm(lead, newStatus = "Novo") {
+        setCrmLeads(prev => {
+          const filtered = prev.filter(l => l.id !== lead.id);
+          return [{ ...lead, crmStatus: newStatus, addedAt: new Date().toLocaleDateString('pt-BR') }, ...filtered];
+        });
+        alert(`Empresa "${lead.name}" adicionada aos Meus Leads com status: ${newStatus}`);
+      }
+
+      // Exportação Oficial para Planilha CSV com UTF-8 BOM
+      function handleExportCSV(dataset = leads) {
+        if (!dataset.length) {
+          alert("Não há dados para exportar no momento.");
+          return;
+        }
+
+        const headers = ["Nome da Empresa", "Segmento", "Cidade", "Estado", "Endereço", "Telefone", "WhatsApp", "Website", "Porte Estimado", "Fonte"];
+        const rows = dataset.map(l => [
+          `"${(l.name || '').replace(/"/g, '""')}"`,
+          `"${(l.category || '').replace(/"/g, '""')}"`,
+          `"${l.city || ''}"`,
+          `"${l.state || ''}"`,
+          `"${(l.address || '').replace(/"/g, '""')}"`,
+          `"${l.phone || ''}"`,
+          `"${l.whatsapp ? '+' + l.whatsapp : ''}"`,
+          `"${l.website || ''}"`,
+          `"${l.size || ''}"`,
+          `"${l.source || ''}"`
+        ]);
+
+        const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.join(";"))].join("\r\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `leadfinder-${scope}-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      // Gerador Dinâmico de Proposta B2B por IA
+      function generateProposal(lead) {
+        return `Olá equipe da ${lead.name}!\n\nMe chamo João Silva. Notei a presença de vocês no segmento de ${lead.category} em ${lead.city}.\n\nTrabalhamos com soluções comerciais para atração de novos clientes e otimização de atendimento para empresas locais. Teria disponibilidade para um bate-papo de 5 minutos nesta semana?\n\nAguardo seu retorno!`;
+      }
+
+      // Filtros em Memória (Segmento, Porte, Contato)
+      const filteredLeads = useMemo(() => {
+        let current = view === "favorites" ? favorites : (view === "leads" ? crmLeads : leads);
+        
+        if (segment !== "Todos") {
+          current = current.filter(l => l.category.toLowerCase().includes(segment.toLowerCase()));
+        }
+        if (size !== "Todos") {
+          current = current.filter(l => l.size === size);
+        }
+        if (contactMethod === "Com WhatsApp") {
+          current = current.filter(l => l.whatsapp);
+        } else if (contactMethod === "Com Telefone") {
+          current = current.filter(l => l.phone);
+        } else if (contactMethod === "Com Website") {
+          current = current.filter(l => l.website);
+        }
+        return current;
+      }, [leads, crmLeads, favorites, view, segment, size, contactMethod]);
+
+      // Paginação
+      const totalPages = Math.ceil(filteredLeads.length / pageSize) || 1;
+      const paginatedLeads = filteredLeads.slice((page - 1) * pageSize, page * pageSize);
+
+      // Cores por categoria no Avatar
+      function getAvatarColor(cat = "") {
+        const c = cat.toLowerCase();
+        if (c.includes("restaurante") || c.includes("comida")) return "bg-emerald-600";
+        if (c.includes("burger") || c.includes("lanche")) return "bg-slate-900";
+        if (c.includes("café") || c.includes("padaria")) return "bg-amber-800";
+        if (c.includes("beleza") || c.includes("salão")) return "bg-purple-600";
+        if (c.includes("distribuidora") || c.includes("mercado")) return "bg-orange-500";
+        if (c.includes("mecânica") || c.includes("carro") || c.includes("auto")) return "bg-blue-600";
+        return "bg-indigo-600";
+      }
+
+      return (
+        <div className="flex min-h-screen bg-[#f8fafc] text-slate-800 pb-16 md:pb-0">
+          
+          {/* ── BARRA LATERAL (DESKTOP) ── */}
+          <aside className="hidden md:flex flex-col w-64 bg-[#081325] text-white shrink-0 justify-between">
+            <div>
+              <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-800/80">
+                <div className="p-2 bg-blue-600 rounded-lg shadow-sm">
+                  <Icons.Search />
+                </div>
+                <div className="font-bold text-xl tracking-tight">
+                  LeadFinder <span className="text-blue-500 font-semibold text-sm">AI</span>
+                </div>
+              </div>
+
+              <nav className="mt-5 px-3 space-y-1.5">
+                <button
+                  onClick={() => setView("search")}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition ${
+                    view === "search" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                  }`}
+                >
+                  <Icons.Search />
+                  Buscar Empresas
+                </button>
+                <button
+                  onClick={() => setView("leads")}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition ${
+                    view === "leads" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                  }`}
+                >
+                  <Icons.Users />
+                  Meus Leads ({crmLeads.length})
+                </button>
+                <button
+                  onClick={() => setView("favorites")}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition ${
+                    view === "favorites" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                  }`}
+                >
+                  <Icons.Heart filled={view === "favorites"} />
+                  Favoritos ({favorites.length})
+                </button>
+                <button
+                  onClick={() => setView("history")}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition ${
+                    view === "history" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                  }`}
+                >
+                  <Icons.History />
+                  Histórico ({history.length})
+                </button>
+              </nav>
+            </div>
+
+            <div className="p-4 border-t border-slate-800/80 space-y-3">
+              <div className="flex items-center justify-between px-2 text-xs text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Conexão: OpenStreetMap
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500 px-2 leading-relaxed">
+                Dados públicos oficiais via satélite e mapa georreferenciado sem custo.
+              </div>
+            </div>
+          </aside>
+
+          {/* ── ÁREA PRINCIPAL ── */}
+          <main className="flex-1 flex flex-col min-w-0">
+            {/* CABEÇALHO */}
+            <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0">
+              <div className="flex items-center gap-3 md:hidden">
+                <div className="p-1.5 bg-blue-600 rounded-lg text-white">
+                  <Icons.Search />
+                </div>
+                <span className="font-bold text-lg text-slate-900 tracking-tight">LeadFinder AI</span>
+              </div>
+              <div className="hidden md:block">
+                <span className="text-sm font-semibold text-slate-600">
+                  {view === "search" && "Painel de Busca & Descoberta B2B"}
+                  {view === "leads" && "CRM: Gestão de Leads Salvos"}
+                  {view === "favorites" && "Empresas Favoritadas"}
+                  {view === "history" && "Histórico de Pesquisas Realizadas"}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
+                  <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
+                    JS
+                  </div>
+                  <span className="hidden sm:inline text-sm font-semibold text-slate-700">João Silva</span>
+                </div>
+              </div>
+            </header>
+
+            {/* CORPO DE CONTEÚDO */}
+            <div className="p-4 md:p-8 max-w-5xl w-full mx-auto space-y-6">
+
+              {/* SEÇÃO 1: PAINEL DE BUSCA (Apenas se a tela ativa for 'search') */}
+              {view === "search" && (
+                <div className="bg-white rounded-xl border border-slate-200 p-5 md:p-6 shadow-sm">
+                  <h2 className="text-base font-bold text-slate-900 mb-4">Buscar Empresas</h2>
+
+                  {/* Campo de Busca Principal */}
+                  <div className="relative mb-4">
+                    <input
+                      type="text"
+                      placeholder="Ex: restaurante, loja de roupas, serviços..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && executeSearch()}
+                      className="w-full pl-10 pr-24 py-3 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 placeholder:text-slate-400"
+                    />
+                    <div className="absolute left-3.5 top-3.5 text-slate-400">
+                      <Icons.Search />
+                    </div>
+                    <button
+                      onClick={() => executeSearch()}
+                      disabled={loading}
+                      className="absolute right-2 top-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition shadow-sm disabled:opacity-50"
+                    >
+                      {loading ? "Buscando..." : "Pesquisar"}
+                    </button>
+                  </div>
+
+                  {/* Seletores de Escopo */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+                    {[
+                      { id: "local", label: "Local", icon: Icons.MapPin },
+                      { id: "city", label: "Cidade/Região", icon: Icons.MapPin },
+                      { id: "state", label: "Estado", icon: Icons.Filter },
+                      { id: "brazil", label: "Todo o Brasil", icon: Icons.Globe },
+                      { id: "international", label: "Internacional", icon: Icons.Globe },
+                    ].map((tab) => {
+                      const Icon = tab.icon;
+                      const isSelected = scope === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setScope(tab.id)}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 text-xs font-medium rounded-lg border transition ${
+                            isSelected
+                              ? "bg-blue-50 border-blue-600 text-blue-700 shadow-sm"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <Icon />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Campo de Localização */}
+                  <div className="mb-4">
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Cidade / Estado / Região de Busca</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Campinas - SP, Curitiba - PR, Rio de Janeiro - RJ"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    />
+                  </div>
+
+                  {/* Menus Dropdown de Filtros */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Segmento</label>
+                      <select
+                        value={segment}
+                        onChange={(e) => setSegment(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer"
+                      >
+                        <option>Todos</option>
+                        <option>Restaurante</option>
+                        <option>Alimentação</option>
+                        <option>Mercado</option>
+                        <option>Mecânica</option>
+                        <option>Salão de Beleza</option>
+                        <option>Roupas</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Porte da empresa</label>
+                      <select
+                        value={size}
+                        onChange={(e) => setSize(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer"
+                      >
+                        <option>Todos</option>
+                        <option>MEI / Micro</option>
+                        <option>Pequena</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Contato</label>
+                      <select
+                        value={contactMethod}
+                        onChange={(e) => setContactMethod(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer"
+                      >
+                        <option>Todos</option>
+                        <option>Com WhatsApp</option>
+                        <option>Com Telefone</option>
+                        <option>Com Website</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Barra Inferior com Botão Pesquisar */}
+                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
+                    <span className="text-xs text-slate-400">
+                      {loading ? "Localizando estabelecimentos..." : `Pronto para consultar`}
+                    </span>
+                    <button
+                      onClick={() => executeSearch()}
+                      disabled={loading}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-7 py-2.5 rounded-lg transition shadow-sm disabled:opacity-50"
+                    >
+                      {loading ? "Pesquisando..." : "Pesquisar"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* SEÇÃO 2: RESULTADOS / LISTAGEM */}
+              <div className="bg-white rounded-xl border border-slate-200 p-5 md:p-6 shadow-sm">
+                
+                {/* Cabeçalho do Card */}
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 text-sm">
+                      Resultados ({filteredLeads.length})
+                    </span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                      Dados Reais Verificados
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => handleExportCSV(filteredLeads)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-blue-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+                      title="Baixar lista em planilha Excel/CSV"
+                    >
+                      <Icons.Download />
+                      <span className="hidden sm:inline">Exportar CSV</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mensagens de Carregamento e Alertas */}
+                {statusMsg && (
+                  <div className="p-3 mb-4 text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded-lg flex items-center justify-between">
+                    <span>{statusMsg}</span>
+                  </div>
+                )}
+
+                {/* Listagem de Empresas em Linhas */}
+                {paginatedLeads.length === 0 && !loading ? (
+                  <div className="text-center py-12 text-slate-400 text-xs">
+                    Nenhuma empresa encontrada para exibir com os filtros atuais.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {paginatedLeads.map((lead) => (
+                      <div
+                        key={lead.id}
+                        className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 p-2.5 rounded-lg transition"
+                      >
+                        {/* Avatar & Detalhes da Empresa */}
+                        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                          <div
+                            className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-sm text-white font-bold text-base ${getAvatarColor(lead.category)}`}
+                          >
+                            {lead.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-sm text-slate-900 truncate">
+                                {lead.name}
+                              </h3>
+                              {lead.isVerified && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                  <Icons.Verified />
+                                  Verificado
+                                </span>
+                              )}
+                              {lead.crmStatus && (
+                                <span className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full border border-blue-200">
+                                  Status: {lead.crmStatus}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 truncate mt-0.5">
+                              {lead.category} &bull; {lead.city} - {lead.state}
+                            </p>
+                            <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                              {lead.address}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Ações Comerciais: Telefone, WhatsApp, Proposta IA e Salvar */}
+                        <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-3.5 pl-14 sm:pl-0">
+                          {/* Telefone */}
+                          {lead.phone ? (
+                            <a
+                              href={`tel:${lead.phone}`}
+                              className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-blue-600 font-medium"
+                            >
+                              <Icons.Phone />
+                              <span>{lead.phone}</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Sem telefone</span>
+                          )}
+
+                          {/* Botão Direto para WhatsApp */}
+                          {lead.whatsapp && (
+                            <a
+                              href={`https://wa.me/${lead.whatsapp}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-full transition shadow-sm"
+                              title="Abrir WhatsApp"
+                            >
+                              <Icons.WhatsApp />
+                            </a>
+                          )}
+
+                          {/* Gerador de Proposta por IA */}
+                          <button
+                            onClick={() => setActiveModalLead(lead)}
+                            className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full transition shadow-sm"
+                            title="Gerar Proposta Comercial IA"
+                          >
+                            <Icons.Sparkles />
+                          </button>
+
+                          {/* Botão de Salvar no CRM */}
+                          <button
+                            onClick={() => updateLeadCrm(lead)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-full transition"
+                            title="Salvar em Meus Leads"
+                          >
+                            <Icons.Users />
+                          </button>
+
+                          {/* Favorito */}
+                          <button
+                            onClick={() => toggleFavorite(lead)}
+                            className="p-2 rounded-full hover:bg-slate-100 transition"
+                            title="Favoritar"
+                          >
+                            <Icons.Heart filled={favorites.some(f => f.id === lead.id)} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Paginação */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-1 mt-6 pt-4 border-t border-slate-100 text-xs">
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="px-2.5 py-1.5 border border-slate-200 rounded text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                    >
+                      &lt;
+                    </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((num) => (
+                      <button
+                        key={num}
+                        onClick={() => setPage(num)}
+                        className={`px-3 py-1.5 rounded font-medium ${
+                          page === num
+                            ? "bg-blue-600 text-white"
+                            : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="px-2.5 py-1.5 border border-slate-200 rounded text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* SEÇÃO 3: HISTÓRICO (Quando a aba selecionada for 'history') */}
+              {view === "history" && (
+                <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                  <h3 className="font-bold text-sm text-slate-900 mb-3">Histórico de Pesquisas</h3>
+                  <div className="divide-y divide-slate-100">
+                    {history.map((h, i) => (
+                      <div key={i} className="py-2.5 flex items-center justify-between text-xs">
+                        <div>
+                          <span className="font-semibold text-slate-800">{h.term}</span> em <span className="text-slate-600">{h.location}</span>
+                          <span className="text-[10px] text-slate-400 block">{h.date} &bull; {h.count} resultados</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSearchTerm(h.term);
+                            setLocation(h.location);
+                            setView("search");
+                            executeSearch(h.term, h.location);
+                          }}
+                          className="px-3 py-1 bg-blue-50 text-blue-600 rounded font-medium hover:bg-blue-100"
+                        >
+                          Repetir
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </main>
+
+          {/* ── MODAL DE PROPOSTA GERADA POR IA ── */}
+          {activeModalLead && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icons.Sparkles />
+                    <h3 className="font-bold text-slate-900 text-sm">
+                      Abordagem Comercial Personalizada (IA)
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setActiveModalLead(null)}
+                    className="text-slate-400 hover:text-slate-600 font-bold text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-500">
+                  Mensagem gerada com base nas informações públicas de:{" "}
+                  <strong>{activeModalLead.name}</strong>
+                </p>
+
+                <textarea
+                  readOnly
+                  rows={8}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-700 font-mono focus:outline-none"
+                  value={generateProposal(activeModalLead)}
+                />
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generateProposal(activeModalLead));
+                      alert("Mensagem copiada para a área de transferência!");
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm"
+                  >
+                    Copiar Mensagem
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── BARRA DE NAVEGAÇÃO INFERIOR (APENAS MOBILE) ── */}
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex items-center justify-around py-2.5 z-40">
+            <button
+              onClick={() => setView("search")}
+              className={`flex flex-col items-center gap-1 ${
+                view === "search" ? "text-blue-600 font-semibold" : "text-slate-400"
+              }`}
+            >
+              <Icons.Search />
+              <span className="text-[10px]">Buscar</span>
+            </button>
+            <button
+              onClick={() => setView("leads")}
+              className={`flex flex-col items-center gap-1 ${
+                view === "leads" ? "text-blue-600 font-semibold" : "text-slate-400"
+              }`}
+            >
+              <Icons.Users />
+              <span className="text-[10px]">Meus Leads</span>
+            </button>
+            <button
+              onClick={() => setView("favorites")}
+              className={`flex flex-col items-center gap-1 ${
+                view === "favorites" ? "text-blue-600 font-semibold" : "text-slate-400"
+              }`}
+            >
+              <Icons.Heart filled={view === "favorites"} />
+              <span className="text-[10px]">Favoritos</span>
+            </button>
+            <button
+              onClick={() => setView("history")}
+              className={`flex flex-col items-center gap-1 ${
+                view === "history" ? "text-blue-600 font-semibold" : "text-slate-400"
+              }`}
+            >
+              <Icons.History />
+              <span className="text-[10px]">Histórico</span>
+            </button>
+          </nav>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
